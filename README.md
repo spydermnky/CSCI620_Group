@@ -62,3 +62,13 @@ CAN BE REPEATED FOR ACTOR 2 AND ACTION, USING PREFIXES
 34. SourceUrl: URL of the news article the event was found in
 
 
+## Code
+
+### load_data.py
+
+**Purpose**
+This code extracts data points from GDELT using the Python gdelt library. Specifically, we select data from March 11, 2019 - March 11, 2022.
+
+**Installation**
+
+```pip install mysql-connector-python pytz gdelt```
