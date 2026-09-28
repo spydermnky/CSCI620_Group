@@ -2,7 +2,9 @@
 Group project repo for CSCI 620 @ RIT
 
 Gunnika Kapoor
+
 Peter Khomchenko
+
 Timothy Ockrin
 
 # Data
