@@ -1,9 +1,12 @@
 # CSCI620_Group
 Group project repo for CSCI 620 @ RIT
 
+Gunnika Kapoor
+Peter Khomchenko
+Timothy Ockrin
 
 # Data
-GDELT Dataset
+## GDELT Dataset Layout
 
 1. GlobalEventId: Globally unique identifier, may have some duplicates
 2. Day: Date in YYYYMMDD Format
@@ -11,7 +14,7 @@ GDELT Dataset
 4. Year: Date in YYYY Format
 5. FractionDate: Date in YYYY.FFFF format, where FFFF is the percentage of the year completed by that day
 
-Actor Attributes:
+*Actor Attributes:*
 
 6. Actor1Code: Raw CAMEO code for Actor 1
 7. Actor1Name: Actual name of Actor 1
@@ -26,7 +29,7 @@ Actor Attributes:
 
 CAN BE REPEATED FOR AN ACTOR 2
 
-Event Action Attributes:
+*Event Action Attributes:*
 
 16. IsRootEvent: Proxy for rough importance of an event
 17. EventCode: Raw CAMEO action code describing action Actor11 performed on Actor2
@@ -39,7 +42,7 @@ Event Action Attributes:
 24. NumArticles: Total number of source documents containing one or more mentions of this event
 25. AvgTone: The average tone of all documents containing one or more mentions of this event
 
-Event Geography:
+*Event Geography:*
 
 26. Actor1Geo_Type: Resolves the match type as a COUNTRY, USSTATE, USCITY, WORLDCITY, or WORLDSTATE
 27. Actor1Geo_Fullname: Full human-readable name of the matched location
@@ -51,7 +54,7 @@ Event Geography:
 
 CAN BE REPEATED FOR ACTOR 2 AND ACTION, USING PREFIXES
 
-Data Management Fields:
+*Data Management Fields:*
 
 33. DateAdded: Date the event was added to the master database
 34. SourceUrl: URL of the news article the event was found in
