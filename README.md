@@ -72,3 +72,7 @@ This code extracts data points from GDELT using the Python gdelt library. Specif
 **Installation**
 
 ```pip install mysql-connector-python pytz gdelt```
+
+**Run**
+
+```python load_data.py```
