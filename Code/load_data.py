@@ -31,13 +31,16 @@ def main():
                    ['2020 Oct 02', '2020 Nov 01'],
                    ['2020 Nov 02', '2020 Dec 01']]
     total_num_entries = 0
+    original_time = time.time()
     for i, date_range in enumerate(date_ranges):
         print(f'Query {i+1}')
         t1 = time.time()
         results = gd1.Search(date_range, table='events', output='pandas') # loads from gkg table
         t2 = time.time()
         print(f'\nQuery {i+1} Results:')
-        print(f'Query Length: {t2-t1:.3}')
+        print(f'Query Length: {t2-t1:.3f}')
+        current_time = time.time()
+        print(f'Total Time Elapsed: {current_time - original_time:.2f}')
         
         # Print length of results for this query and add it to total length
         print(f'Number of events for the date range {date_range}: {len(results)}\n')
