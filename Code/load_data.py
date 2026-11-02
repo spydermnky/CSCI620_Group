@@ -17,7 +17,7 @@ def main():
     gd1 = gdelt.gdelt(version=1)
     
     # Pull data from a single day and output it as a Pandas dataframe.
-    date_ranges = [['2019 Nov 02', '2019 Dec 01'],
+    """date_ranges = [['2019 Nov 02', '2019 Dec 01'],
                    ['2019 Dec 02', '2020 Jan 01'],
                    ['2020 Jan 02', '2020 Feb 01'],
                    ['2020 Feb 02', '2020 Mar 01'],
@@ -29,7 +29,8 @@ def main():
                    ['2020 Aug 02', '2020 Sep 01'],
                    ['2020 Sep 02', '2020 Oct 01'],
                    ['2020 Oct 02', '2020 Nov 01'],
-                   ['2020 Nov 02', '2020 Dec 01']]
+                   ['2020 Nov 02', '2020 Dec 01']]"""
+    date_ranges = ['2019 Nov 03']
     total_num_entries = 0
     original_time = time.time()
     for i, date_range in enumerate(date_ranges):
@@ -65,6 +66,8 @@ def main():
     
     print(f'Total number of events: {total_num_entries}')
     print('DONE')
+    
+    return results
 
 if __name__ == '__main__':
-    main()
+    results = main()
