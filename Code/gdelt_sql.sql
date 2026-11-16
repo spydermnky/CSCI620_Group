@@ -1,3 +1,5 @@
+DROP DATABASE GDELT;
+
 CREATE DATABASE GDELT;
 
 USE GDELT;
@@ -30,19 +32,19 @@ ALTER Table TypeCode
 -- ----------- EVENTACTION TABLE -----------
 -- EventAction (EventCode (PK), EventBaseCode, EventRootCode, QuadClass, GoldsteinScale, CAMEOCodeDescription)
 
-CREATE TABLE EventAction (EventCode varchar(10), EventBaseCode varchar(10), EventRootCode varchar(10), QuadClass int, GoldsteinScale decimal, CAMEOCodeDescription varchar(100), 
+CREATE TABLE EventAction (EventCode varchar(10), EventBaseCode varchar(10), EventRootCode varchar(10), QuadClass int, GoldsteinScale decimal(4, 2), CAMEOCodeDescription varchar(100), 
 PRIMARY KEY (EventCode));
     
 -- ----------- EVENTIMPORTANCE TABLE -----------
 -- EventImportance (GlobalEventId (PK), IsRootEvent, NumMentions, NumSources, NumArticles, AvgTone)
 
-CREATE TABLE EventImportance (GlobalEventId int, IsRootEvent int, NumMentions int, NumSources int, NumArticles int, AvgTone decimal, 
+CREATE TABLE EventImportance (GlobalEventId int, IsRootEvent int, NumMentions int, NumSources int, NumArticles int, AvgTone decimal(7, 4), 
 PRIMARY KEY (GlobalEventId));
     
 -- ----------- ACTORGEO TABLE -----------
 -- ActorGeo (GlobalEventId (PK), GeoActorCode (FK), ActorGeo_Type, ActorGeo_Fullname, ActorGeo_CountryCode, ActorGeo_ADMCode, ActorGeo_Lat, ActorGeo_Long, ActorGeo_FeatureId)
 
-CREATE TABLE ActorGeo (GlobalEventId int, GeoActorCode varchar(30), ActorGeo_Type int, ActorGeo_FullName varchar(150), ActorGeo_CountryCode char(2), ActorGeo_ADMCode char(4), ActorGeo_Lat decimal, ActorGeo_Long decimal, ActorGeo_FeatureId int, 
+CREATE TABLE ActorGeo (GlobalEventId int, GeoActorCode varchar(30), ActorGeo_Type int, ActorGeo_FullName varchar(150), ActorGeo_CountryCode char(2), ActorGeo_ADMCode char(4), ActorGeo_Lat decimal(8, 4), ActorGeo_Long decimal(8, 4), ActorGeo_FeatureId int, 
 PRIMARY KEY (GlobalEventId));
     
 ALTER Table ActorGeo
@@ -51,7 +53,7 @@ ALTER Table ActorGeo
 -- ----------- ACTIONGEO TABLE -----------
 -- ActionGeo (GlobalEventId (PK), GeoActionCode (FK), ActionGeo_Type, ActionGeo_FullName, ActionGeo_CountryCode, ActionGeo_ADMCode, ActionGeo_Lat, ActionGeo_Long, ActionGeo_FeatureId)
 
-CREATE TABLE ActionGeo (GlobalEventId int, GeoActionCode varchar(10), ActionGeo_Type int, ActionGeo_FullName varchar(150), ActionGeo_CountryCode char(2), ActionGeo_ADMCode char(4), ActionGeo_Lat decimal, ActionGeo_Long decimal, ActionGeo_FeatureId int,
+CREATE TABLE ActionGeo (GlobalEventId int, GeoActionCode varchar(10), ActionGeo_Type int, ActionGeo_FullName varchar(150), ActionGeo_CountryCode char(2), ActionGeo_ADMCode char(4), ActionGeo_Lat decimal(8, 4), ActionGeo_Long decimal(8, 4), ActionGeo_FeatureId int,
 PRIMARY KEY (GlobalEventId));
 
 ALTER Table ActionGeo
@@ -67,7 +69,7 @@ PRIMARY KEY (GlobalEventId));
 -- ParticipatesIn (GlobalEventId (PK), Actor1 (FK), Actor2 (FK), EventCode (FK), Day)
 
 CREATE TABLE ParticipatesIn (GlobalEventId int, Actor1 varchar(30), Actor2 varchar(30), EventCode varchar(10), Day datetime,
-PRIMARY KEY (GlobalEventId));
+PRIMARY KEY (GlobalEventId, Actor1, Actor2));
     
 ALTER Table ParticipatesIn
 	ADD CONSTRAINT FOREIGN KEY (Actor1) REFERENCES Actor(ActorCode) ON DELETE CASCADE;
@@ -77,14 +79,3 @@ ALTER Table ParticipatesIn
     
 ALTER Table ParticipatesIn
 	ADD CONSTRAINT FOREIGN KEY (EventCode) REFERENCES EventAction(EventCode) ON DELETE CASCADE;
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

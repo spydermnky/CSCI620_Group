@@ -1,7 +1,6 @@
 # File to Load GDELT Dataset into MySQL
 # Group Members: Gunnika Kapoor, Peter Khomchenko, Timothy Ockrin
-# Code primarily written by Gunnika Kapoor
-
+# Code written by Gunnika Kapoor
 
 import csv
 import xml.etree.ElementTree as ET
@@ -12,6 +11,7 @@ import re
 import gdelt
 import time
 import pandas as pd
+import numpy as np
 
 
 ''' 
@@ -21,12 +21,11 @@ CONNECT TO THE DATABASE
 (DELETE THEM BEFORE PUSHING TO GITHUB)
 '''
 
-username = ''
-password = ''
-host = ''
-port = 
-database = ''
-
+# username = ''
+# password = ''
+# host = ''
+# port = 
+# database = ''
 
 #---------------------------------------------------------------------------------------------------------
 #-------------------------------LOAD DATA FROM GDELT LIBRARY INTO PANDAS DF-------------------------------
@@ -60,7 +59,7 @@ def GDELT_Loader(date_ranges):
 
         # Add retry logic for timeouts
         '''
-        The retry logic, specifically the attempt try clause logic, was written by Gemini since I was unsure how to execute it.
+        The retry logic, specifically the attempt try clause logic, was written by Gemini.
         This helps ensure that if a portion of the query fails, the entire query does not.
         '''
         success = False
@@ -106,11 +105,9 @@ def main():
     # This allows the data request to be broken into subrequests, improving the efficiency
     # with which the data can be collected.
 
-    # Simple date range for testing purposes
-    #date_ranges_simple = [['2019 Nov 02', '2019 Nov 03']]
-
-    # Full date ranges function
-    date_ranges = [['2019 Nov 01', '2019 Nov 05'],
+    # Full date ranges list
+    date_ranges = [
+                    ['2019 Nov 01', '2019 Nov 05'],
                     ['2019 Nov 06', '2019 Nov 10'],
                     ['2019 Nov 11', '2019 Nov 15'],
                     ['2019 Nov 16', '2019 Nov 20'],
@@ -204,7 +201,6 @@ def main():
 
     # Call function to collect GDELT data and pass it the desired date ranges
     GDELT_df = GDELT_Loader(date_ranges)
-    # GDELT_df = GDELT_Loader(date_ranges_simple)
 
     # Print out all headers in dataframe
     print(list(GDELT_df.columns.values))
@@ -215,7 +211,7 @@ def main():
 
 
 '''
-This if statement handles the logic of calling the function to collect the GDELT data and load it into the database.
+This if statement handles the logic of calling the function to collect the GDELT data and loading it into the database.
 '''
 if __name__ == '__main__':
     start = datetime.now(pytz.utc) # Time at the start of the entire operation
@@ -271,7 +267,7 @@ if __name__ == '__main__':
     print(GDELT_df[:5][['Actor1Code', 'Actor2Code']])
 
 
-    # Make sure no rows now have ActorName null (shouldn't be possible since the codes aren't null, but drop any rows where the name is null)
+    # Make sure no rows now have ActorName null
 
     print(f"\nHandling Actor Names:")
     # Check how many rows have a NaN in Actor1Name
@@ -343,7 +339,7 @@ if __name__ == '__main__':
     # Creating the cursor object
     c = conn.cursor(prepared=True)
 
-    # We add each Actor1 and Actor2 to the Actor table separately. So, we create two views of the datarame for each actor type
+    # We add each Actor1 and Actor2 to the Actor table separately. So, we create two views of the dataframe for each actor type
 
     # Collect Actor 1 Attributes and drop rows with duplicate Actor1Codes
     actor_1_attrs = GDELT_df[["Actor1Code", "Actor1Name", "Actor1CountryCode", "Actor1KnownGroupCode", "Actor1EthnicCode"]]
@@ -368,9 +364,38 @@ if __name__ == '__main__':
 
     # Convert the df into a list of tuples for insertion into mysql
     '''
-    The code below was written by Gemini, as I was unsure how to convert the df into a list of tuples
+    The code below was written by Gemini, as before this line of code, I was getting errors related to the input data
+    being too long for the columns. This is due to the Nones being treated as float-based NaNs. This code corrected that error.
     '''
+    actor_attrs = actor_attrs.astype(object).replace({np.nan: None})
+
+    # Drop rows with duplicate ActorCodes, since that is the primary key
+    actor_attrs["ActorCode"] = actor_attrs["ActorCode"].str.upper() # Convert all ActorCodes to uppercase so duplicates are properly deleted
+    actor_attrs = actor_attrs.drop_duplicates(subset=["ActorCode"], keep="first")
+
     actors_to_insert = actor_attrs.to_numpy().tolist()
+
+    ############# CREATE TABLE #############
+    max_length_actorcode = max_length_actor + 10
+    max_length_actorname = max_length_actorname + 10
+    maxlength_actorgroupcode = maxlength_actorgroupcode + 10
+    maxlength_actorethniccode = maxlength_actorethniccode + 10
+
+    print(f"{actors_to_insert[0]}")
+
+    c.execute("DROP TABLE IF EXISTS Actor;")
+
+    create_actor_table_query = f"""
+        CREATE TABLE IF NOT EXISTS Actor (
+            ActorCode VARCHAR({max_length_actorcode}) PRIMARY KEY,
+            ActorName VARCHAR({max_length_actorname}),
+            ActorCountryCode VARCHAR(5),
+            ActorKnownGroupCode VARCHAR({maxlength_actorgroupcode}),
+            ActorEthnicCode VARCHAR({maxlength_actorethniccode})
+        );
+    """
+    c.execute(create_actor_table_query)
+
 
     ############# INSERT TUPLES #############
     # Actor(ActorCode (PK), ActorName, ActorCountryCode, ActorKnownGroupCode, ActorEthnicCode) 
@@ -413,8 +438,8 @@ if __name__ == '__main__':
     max_length_actor2religion1 = GDELT_df["Actor2Religion1Code"].str.len().max()
     max_length_actor2religion2 = GDELT_df["Actor2Religion2Code"].str.len().max()
 
-    max_length_type = max(max_length_actor1religion1, max_length_actor1religion2, max_length_actor2religion1, max_length_actor2religion2)
-    print(f"\n\n\nmax length:{max_length_type}")
+    max_length_religion = max(max_length_actor1religion1, max_length_actor1religion2, max_length_actor2religion1, max_length_actor2religion2)
+    print(f"\n\n\nmax length:{max_length_religion}")
 
 
     # To determine how long it took to load the data into the ReligionCode table, we display the time before and after value insertion.
@@ -428,7 +453,7 @@ if __name__ == '__main__':
 
     # --------- Create df for Type Codes ---------
 
-    # We add each Actor1 and Actor2 to the Actor table separately. So, we create two views of the datarame for each actor type
+    # We add each Actor1 and Actor2 to the Actor table separately. So, we create two views of the dataframe for each actor type
 
     # Collect Actor 1 Attributes and drop rows with duplicate Actor and Religion Codes. Rename columns to match with final df.
     actor_1_religion_1_attrs = GDELT_df[["Actor1Code", "Actor1Religion1Code"]]
@@ -469,8 +494,30 @@ if __name__ == '__main__':
     # Drop nulls from the table
     results_religion_good = religion_attrs[religion_attrs['ReligionCode'].notna()]
 
+    # Replace float style NaNs with None
+    results_religion_good = results_religion_good.astype(object).replace({np.nan: None})
+    
+    # Drop rows with duplicate ActorCodes, since that is the primary key
+    results_religion_good["ActorCode"] = results_religion_good["ActorCode"].str.upper() # Convert all ActorCodes to uppercase so duplicates are properly deleted
+    results_religion_good = results_religion_good.drop_duplicates(subset=["ActorCode"], keep="first")
+
     # Convert the df into a list of tuples for insertion into mysql
     religions_to_insert = results_religion_good.to_numpy().tolist()
+
+    ############# CREATE TABLE #############
+    c.execute("DROP TABLE IF EXISTS ReligionCode;")
+
+    maxlength_actorcode = max_length_actor + 10
+    maxlength_religion_code = max_length_religion + 10
+    
+    create_religion_table_query = f"""
+        CREATE TABLE IF NOT EXISTS ReligionCode (
+            ActorCode VARCHAR({maxlength_actorcode}) PRIMARY KEY,
+            ReligionCode VARCHAR({maxlength_religion_code})
+        );
+    """
+
+    c.execute(create_religion_table_query)
 
     ############# INSERT TUPLES #############
     # ReligionCode(ActorCode (PK, FK to ActorCode in Actor Table), ReligionCode)  
@@ -532,7 +579,7 @@ if __name__ == '__main__':
 
     # --------- Create df for Type Codes ---------
 
-    # We add each Actor1 and Actor2 to the Actor table separately. So, we create two views of the datarame for each actor type
+    # We add each Actor1 and Actor2 to the Actor table separately. So, we create two views of the dataframe for each actor type
 
     # Collect Actor 1 Attributes and drop rows with duplicate Actor and Type Codes. Rename columns to match with final df.
     actor_1_type_1_attrs = GDELT_df[["Actor1Code", "Actor1Type1Code"]]
@@ -575,14 +622,40 @@ if __name__ == '__main__':
 
     # Combine actor 1 and actor 2 atrributes into one table and drop any duplicates a final time
     type_attrs = pd.concat([actor_1_attrs, actor_2_attrs], ignore_index=True)
+    type_attrs = type_attrs.drop_duplicates(subset=["ActorCode", "TypeCode"], keep="first")
 
     # --------- Combine Type Codes and Actors ---------
 
     # Drop nulls from the table
     results_type_good = type_attrs[type_attrs['TypeCode'].notna()]
 
+    # Replace float style NaNs with None
+    results_type_good = results_type_good.astype(object).replace({np.nan: None})
+    
+    # Drop rows with duplicate ActorCodes, since that is the primary key
+    results_type_good["ActorCode"] = results_type_good["ActorCode"].str.upper() # Convert all ActorCodes to uppercase so duplicates are properly deleted
+    results_type_good = results_type_good.drop_duplicates(subset=["ActorCode"], keep="first")
+
     # Convert the df into a list of tuples for insertion into mysql
     types_to_insert = results_type_good.to_numpy().tolist()
+
+    ############# CREATE TABLE #############
+    c.execute("DROP TABLE IF EXISTS TypeCode;")
+
+    # CREATE TABLE TypeCode (ActorCode varchar(30), TypeCode varchar(10), 
+    # PRIMARY KEY (ActorCode));
+
+    maxlength_actorcode = max_length_actor + 10
+    maxlength_type_code = max_length_type + 10
+    
+    create_typecode_table_query = f"""
+        CREATE TABLE IF NOT EXISTS TypeCode (
+            ActorCode VARCHAR({maxlength_actorcode}) PRIMARY KEY,
+            TypeCode VARCHAR({maxlength_type_code})
+        );
+    """
+
+    c.execute(create_typecode_table_query)
 
     ############# INSERT TUPLES #############
     # SQL query to insert data into database
@@ -620,26 +693,24 @@ if __name__ == '__main__':
     # we determine what the maximum length of those values is in the files we are loading in.
 
     # --------- EventAction ---------
-    # 26. 'IsRootEvent', 27. 'EventCode', 28. 'CAMEOCodeDescription', 29. 'EventBaseCode', 30. 'EventRootCode', 31. 'QuadClass', 32. 'GoldsteinScale'
-    # 33. 'NumMentions', 34. 'NumSources', 35. 'NumArticles', 36. 'AvgTone'
     print(f"\n-------------------------\nEVENTCODE\n-------------------------\n")
-    max_length_eventaction = GDELT_df["EventCode"].str.len().max()
-    print(f"\n\n\nmax length EventCode:{max_length_eventaction}")
+    max_length_eventcode = GDELT_df["EventCode"].str.len().max()
+    print(f"\n\n\nmax length EventCode:{max_length_eventcode}")
 
     print(f"\n-------------------------\nEVENTBASECODE\n-------------------------\n")
-    max_length_eventaction = GDELT_df["EventBaseCode"].str.len().max()
-    print(f"\n\n\nmax length EventBaseCode:{max_length_eventaction}")
+    max_length_eventbasecode = GDELT_df["EventBaseCode"].str.len().max()
+    print(f"\n\n\nmax length EventBaseCode:{max_length_eventbasecode}")
 
     print(f"\n-------------------------\nEVENTROOTCODE\n-------------------------\n")
-    max_length_eventaction = GDELT_df["EventRootCode"].str.len().max()
-    print(f"\n\n\nmax length EventRootCodet:{max_length_eventaction}")
+    max_length_eventrootcode = GDELT_df["EventRootCode"].str.len().max()
+    print(f"\n\n\nmax length EventRootCodet:{max_length_eventrootcode}")
 
     print(f"\n-------------------------\nCAMEOCODEDESCRIPTION\n-------------------------\n")
-    max_length_eventaction = GDELT_df["CAMEOCodeDescription"].str.len().max()
-    print(f"\n\n\nmax length CAMEOCodeDescription:{max_length_eventaction}")
+    max_length_eventcameo = GDELT_df["CAMEOCodeDescription"].str.len().max()
+    print(f"\n\n\nmax length CAMEOCodeDescription:{max_length_eventcameo}")
 
 
-    # # To determine how long it took to load the data into the EventAction table, we display the time before and after value insertion.
+    # To determine how long it took to load the data into the EventAction table, we display the time before and after value insertion.
     before = datetime.now(pytz.utc) # Time before insertion
     print(f"\n\n----------------------------------------------------------\nBefore EventAction Insert Executed: {before.astimezone(pytz.timezone('US/Eastern')).time()}\n----------------------------------------------------------\n")
 
@@ -650,17 +721,44 @@ if __name__ == '__main__':
 
     # --------- Create df for Event Action ---------
 
-    # Collect EventAction Attributes and drop rows with duplicate EventCode
+    # Collect EventAction Attributes
     event_attrs = GDELT_df[["EventCode", "EventBaseCode", "EventRootCode", "QuadClass", "GoldsteinScale", "CAMEOCodeDescription"]]
-    event_attrs = event_attrs.drop_duplicates(subset=["EventCodes"], keep="first") # Drop based on the GlobalEventId column and keep the first instance
 
     # Ensure all columns of the df are the correct type before insertion
     event_attrs = event_attrs.astype({"EventCode": str, "EventBaseCode": str, "EventRootCode": str, "QuadClass": int, "GoldsteinScale": float, "CAMEOCodeDescription": str})
 
     # --------- Combine Type Codes and Actors ---------
 
+    # Replace float style NaNs with None
+    event_attrs = event_attrs.astype(object).replace({np.nan: None})
+    
+    # Drop rows with duplicate EventCodes, since that is the primary key
+    event_attrs["EventCode"] = event_attrs["EventCode"].str.upper() # Convert all EventCodes to uppercase so duplicates are properly deleted
+    event_attrs = event_attrs.drop_duplicates(subset=["EventCode"], keep="first")
+
     # Convert the df into a list of tuples for insertion into mysql
     events_to_insert = event_attrs.to_numpy().tolist()
+
+    ############# CREATE TABLE #############
+    c.execute("DROP TABLE IF EXISTS EventAction;")
+
+    max_length_eventcode = max_length_eventcode + 10
+    max_length_eventbasecode = max_length_eventbasecode + 10
+    max_length_eventrootcode = max_length_eventrootcode + 10
+    max_length_eventcameo = max_length_eventcameo + 10
+    
+    create_eventaction_table_query = f"""
+        CREATE TABLE IF NOT EXISTS EventAction (
+            EventCode VARCHAR({max_length_eventcode}) PRIMARY KEY,
+            EventBaseCode VARCHAR({max_length_eventbasecode}),
+            EventRootCode VARCHAR({max_length_eventrootcode}),
+            QuadClass INT,
+            GoldsteinScale DECIMAL(4, 2),
+            CAMEOCodeDescription VARCHAR({max_length_eventcameo})
+        );
+    """
+
+    c.execute(create_eventaction_table_query)
 
     ############# INSERT TUPLES #############
     # SQL query to insert data into database
@@ -680,9 +778,9 @@ if __name__ == '__main__':
     conn.close()
 
 
-    #---------------------------------------------------------------------------------------------------------
-    #------------------------------------------EVENTIMPORTANCE TABLE------------------------------------------
-    #---------------------------------------------------------------------------------------------------------
+    # ---------------------------------------------------------------------------------------------------------
+    # ------------------------------------------EVENTIMPORTANCE TABLE------------------------------------------
+    # ---------------------------------------------------------------------------------------------------------
 
     ############# CONNECT TO DATABASE #############
 
@@ -692,8 +790,6 @@ if __name__ == '__main__':
                                     database=database)
 
 
-    # To determine how long it took to load the data into the EventImportance table, we display the time before and after value insertion.
-    # The code to display the time was modified from this link: https://stackoverflow.com/questions/415511/how-do-i-get-the-current-time-in-python
     before = datetime.now(pytz.utc) # Time before insertion
     print(f"\n\n----------------------------------------------------------\nBefore EventImportance Insert Executed: {before.astimezone(pytz.timezone('US/Eastern')).time()}\n----------------------------------------------------------\n")
 
@@ -702,22 +798,46 @@ if __name__ == '__main__':
     # creating the cursor object
     c = conn.cursor(prepared=True)
 
-    # Collect Event Attributes and drop rows with duplicate GlobalEventId Codes
-    event_attrs = GDELT_df[["GlobalEventId", "IsRootEvent", "NumMentions", "NumSources", "NumArticles", "AvgTone"]]
-    event_attrs = event_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first") # Drop based on the GlobalEventId column and keep the first instance
+    # Collect Event Attributes
+    eventimp_attrs = GDELT_df[["GLOBALEVENTID", "IsRootEvent", "NumMentions", "NumSources", "NumArticles", "AvgTone"]]
 
     # Ensure all columns of the df are the correct type before insertion
-    event_attrs = event_attrs.astype({"GlobalEventId": int, "IsRootEvent": int, "NumMentions": int, "NumSources": int, "NumArticles": int, "AvgTone": float})
+    eventimp_attrs = eventimp_attrs.astype({"GLOBALEVENTID": int, "IsRootEvent": int, "NumMentions": int, "NumSources": int, "NumArticles": int, "AvgTone": float})
+
+    # Rename GLOBALEVENTID to fit the camelcase writing style of the remaining attributes
+    eventimp_attrs = eventimp_attrs.rename(columns={"GLOBALEVENTID": "GlobalEventId"})
+
+    # Replace float style NaNs with None
+    eventimp_attrs = eventimp_attrs.astype(object).replace({np.nan: None})
+    
+    # Drop rows with duplicate GlobalEventIds, since that is the primary key
+    eventimp_attrs = eventimp_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first")
 
     # Convert the df into a list of tuples for insertion into mysql
-    events_to_insert = event_attrs.to_numpy().tolist()
+    eventsimp_to_insert = eventimp_attrs.to_numpy().tolist()
+
+    ############# CREATE TABLE #############
+    c.execute("DROP TABLE IF EXISTS EventImportance;")
+    
+    create_eventimportance_table_query = f"""
+        CREATE TABLE IF NOT EXISTS EventImportance (
+            GlobalEventId INT PRIMARY KEY,
+            IsRootEvent INT,
+            NumMentions INT,
+            NumSources INT,
+            NumArticles INT,
+            AvgTone DECIMAL(7, 4)
+        );
+    """
+
+    c.execute(create_eventimportance_table_query)
 
     ############# INSERT TUPLES #############
     # EventImportance(GlobalEventId (PK), IsRootEvent, NumMentions, NumSources, NumArticles, AvgTone)  
     query = """INSERT INTO EventImportance (GlobalEventId, IsRootEvent, NumMentions, NumSources, NumArticles, AvgTone)  VALUES(?, ?, ?, ?, ?, ?)"""
 
     # executing cursor object to batch insert
-    c.executemany(query, events_to_insert)
+    c.executemany(query, eventsimp_to_insert)
     conn.commit()
 
     after = datetime.now(pytz.utc) # Display time after operation
@@ -754,8 +874,6 @@ if __name__ == '__main__':
     print(f"\n\n\nmax length: ActorGeo_FullName = {max_length_geo1} and actor_2 = {max_length_geo2} --> final max = {max_length_geo}")
 
 
-    # To determine how long it took to load the data into the ActorGeo table, we display the time before and after value insertion.
-    # The code to display the time was modified from this link: https://stackoverflow.com/questions/415511/how-do-i-get-the-current-time-in-python
     before = datetime.now(pytz.utc) # Time before insertion
     print(f"\n\n----------------------------------------------------------\nBefore ActorGeo Insert Executed: {before.astimezone(pytz.timezone('US/Eastern')).time()}\n----------------------------------------------------------\n")
 
@@ -767,18 +885,31 @@ if __name__ == '__main__':
     # Since we have separate attributes for Actor1, Actor2, and Actions, we will collect them separately before combining later on
 
     # Collect Actor 1 Attributes and drop rows with duplicate GlobalEventId
-    actor_1_attrs = GDELT_df[["GlobalEventId", "Actor1Code", "Actor1Geo_Type", "Actor1Geo_FullName", "Actor1Geo_CountryCode", "Actor1Geo_ADM1Code", "Actor1Geo_Lat", "Actor1Geo_Long", "Actor1Geo_FeatureID"]]
-    actor_1_attrs = actor_1_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first") # Drop based on the GlobalEventId column and keep the first instance
+    actor_1_attrs = GDELT_df[["GLOBALEVENTID", "Actor1Code", "Actor1Geo_Type", "Actor1Geo_FullName", "Actor1Geo_CountryCode", "Actor1Geo_ADM1Code", "Actor1Geo_Lat", "Actor1Geo_Long", "Actor1Geo_FeatureID"]]
+    actor_1_attrs = actor_1_attrs.drop_duplicates(subset=["GLOBALEVENTID"], keep="first") # Drop based on the GlobalEventId column and keep the first instance
+    
+    # Rename GLOBALEVENTID to fit the camelcase writing style of the remaining attributes
+    actor_1_attrs = actor_1_attrs.rename(columns={"GLOBALEVENTID": "GlobalEventId"})
 
     # Collect Actor 2 Attributes and drop rows with duplicate GlobalEventId
-    actor_2_attrs = GDELT_df[["GlobalEventId", "Actor2Code", "Actor2Geo_Type", "Actor2Geo_FullName", "Actor2Geo_CountryCode", "Actor2Geo_ADM1Code", "Actor2Geo_Lat", "Actor2Geo_Long", "Actor2Geo_FeatureID"]]
-    actor_2_attrs = actor_1_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first") # Drop based on the GlobalEventId column and keep the first instance
+    actor_2_attrs = GDELT_df[["GLOBALEVENTID", "Actor2Code", "Actor2Geo_Type", "Actor2Geo_FullName", "Actor2Geo_CountryCode", "Actor2Geo_ADM1Code", "Actor2Geo_Lat", "Actor2Geo_Long", "Actor2Geo_FeatureID"]]
+    actor_2_attrs = actor_2_attrs.drop_duplicates(subset=["GLOBALEVENTID"], keep="first") # Drop based on the GlobalEventId column and keep the first instance
+
+    # Rename GLOBALEVENTID to fit the camelcase writing style of the remaining attributes
+    actor_2_attrs = actor_2_attrs.rename(columns={"GLOBALEVENTID": "GlobalEventId"})
 
     # Ensure all columns of the df are the correct type before insertion
-    actor_1_attrs = actor_1_attrs.astype({"GlobalEventId": int, "Actor1Code": str, "Actor1Geo_Type": int, "Actor1Geo_FullName": str, "Actor1Geo_CountryCode": str, 
-                                          "Actor1Geo_ADM1Code": str, "Actor1Geo_Lat": float, "Actor1Geo_Long": float, "Actor1Geo_FeatureID": int})
-    actor_2_attrs = actor_2_attrs.astype({"GlobalEventId": int, "Actor2Code": str, "Actor2Geo_Type": int, "Actor2Geo_FullName": str, "Actor2Geo_CountryCode": str, 
-                                              "Actor2Geo_ADM1Code": str, "Actor2Geo_Lat": float, "Actor2Geo_Long": float, "Actor2Geo_FeatureID": int})
+    '''Code written by Gemini to convert the non-integer values into ints'''
+    numeric_cols = ["GlobalEventId", "Actor1Geo_Type", "Actor1Geo_FeatureID", "Actor1Geo_Lat", "Actor1Geo_Long"]
+    for col in numeric_cols:
+        actor_1_attrs[col] = pd.to_numeric(actor_1_attrs[col], errors='coerce')
+
+    numeric_cols = ["GlobalEventId", "Actor2Geo_Type", "Actor2Geo_FeatureID", "Actor2Geo_Lat", "Actor2Geo_Long"]
+    for col in numeric_cols:
+        actor_2_attrs[col] = pd.to_numeric(actor_2_attrs[col], errors='coerce')
+
+    actor_1_attrs = actor_1_attrs.astype({"Actor1Code": str, "Actor1Geo_FullName": str, "Actor1Geo_CountryCode": str, "Actor1Geo_ADM1Code": str})
+    actor_2_attrs = actor_2_attrs.astype({"Actor2Code": str, "Actor2Geo_FullName": str, "Actor2Geo_CountryCode": str, "Actor2Geo_ADM1Code": str})
 
     # Rename the columns of each df to the names that will be used in the final SQL table
     actor_1_attrs = actor_1_attrs.rename(columns={"GlobalEventId": "GlobalEventId", "Actor1Code": "GeoActorCode", "Actor1Geo_Type": "ActorGeo_Type", "Actor1Geo_FullName": "ActorGeo_FullName", 
@@ -788,12 +919,40 @@ if __name__ == '__main__':
                                                   "Actor2Geo_CountryCode": "ActorGeo_CountryCode", "Actor2Geo_ADM1Code": "ActorGeo_ADM1Code", "Actor2Geo_Lat": "ActorGeo_Lat", 
                                                   "Actor2Geo_Long": "ActorGeo_Long", "Actor2Geo_FeatureID": "ActorGeo_FeatureID"})
 
-    # Recombine the actor 1 and actor 2 attreibutes into one df and drop any rows with duplicate GlobalEventIds and ActorCodes
-    actor_attrs = pd.concat([actor_1_attrs, actor_2_attrs], ignore_index=True)
-    actor_attrs = actor_attrs.drop_duplicates(subset=["GlobalEventId", "ActorCode"], keep="first")
+    # Recombine the actor 1 and actor 2 attributes into one df and drop any rows with duplicate GlobalEventIds and ActorCodes
+    actorgeo_attrs = pd.concat([actor_1_attrs, actor_2_attrs], ignore_index=True)
+
+    # Replace float style NaNs with None
+    actorgeo_attrs = actorgeo_attrs.astype(object).replace({np.nan: None})
+    
+    # Drop rows with duplicate GlobalEventIds, since that is the primary key
+    actorgeo_attrs = actorgeo_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first")
 
     # Convert the df into a list of tuples for insertion into mysql
-    actors_to_insert = actor_attrs.to_numpy().tolist()
+    actorsgeo_to_insert = actorgeo_attrs.to_numpy().tolist()
+
+    ############# CREATE TABLE #############
+    c.execute("DROP TABLE IF EXISTS ActorGeo;")
+
+    max_length_geo = max_length_geo + 10
+    max_length_geocode = max_length_actor + 10
+    
+    create_actorgeo_table_query = f"""
+        CREATE TABLE IF NOT EXISTS ActorGeo (
+            GlobalEventId INT PRIMARY KEY,
+            GeoActorCode VARCHAR({max_length_geocode}),
+            ActorGeo_Type INT,
+            ActorGeo_FullName VARCHAR({max_length_geo}),
+            ActorGeo_CountryCode CHAR(2),
+            ActorGeo_ADMCode CHAR(4),
+            ActorGeo_Lat DECIMAL(8, 4),
+            ActorGeo_Long DECIMAL(8, 4),
+            ActorGeo_FeatureId INT
+        );
+    """
+
+    c.execute(create_actorgeo_table_query)
+
 
     ############# INSERT TUPLES #############
     # ActorGeo(GlobalEventId (PK), GeoActorCode (FK on ActorCode in Actor Table), 
@@ -802,7 +961,7 @@ if __name__ == '__main__':
     query = """INSERT INTO ActorGeo (GlobalEventId, GeoActorCode, ActorGeo_Type, ActorGeo_Fullname, ActorGeo_CountryCode, ActorGeo_ADMCode, ActorGeo_Lat, ActorGeo_Long, ActorGeo_FeatureId) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)"""
 
     # executing cursor object to batch insert
-    c.executemany(query, actors_to_insert)
+    c.executemany(query, actorsgeo_to_insert)
     conn.commit()
 
     after = datetime.now(pytz.utc) # Display time after operation
@@ -837,8 +996,6 @@ if __name__ == '__main__':
     print(f"\n\n\nmax length: {max_length_geo}")
 
 
-    # To determine how long it took to load the data into the ActionGeo table, we display the time before and after value insertion.
-    # The code to display the time was modified from this link: https://stackoverflow.com/questions/415511/how-do-i-get-the-current-time-in-python
     before = datetime.now(pytz.utc) # Time before insertion
     print(f"\n\n----------------------------------------------------------\nBefore ActionGeo Insert Executed: {before.astimezone(pytz.timezone('US/Eastern')).time()}\n----------------------------------------------------------\n")
 
@@ -847,21 +1004,54 @@ if __name__ == '__main__':
     # creating the cursor object
     c = conn.cursor(prepared=True)
 
-    # Collect Action Attributes and drop rows with duplicate GlobalEventId
-    action_attrs = GDELT_df[["GlobalEventId", "EventCode", "ActionGeo_Type", "ActionGeo_FullName", "ActionGeo_CountryCode", "ActionGeo_ADM1Code", "ActionGeo_Lat", "ActionGeo_Long", "ActionGeo_FeatureID"]]
-    action_attrs = action_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first") # Drop based on the GlobalEventId column and keep the first instance
+    # Collect Action Attributes
+    action_attrs = GDELT_df[["GLOBALEVENTID", "EventCode", "ActionGeo_Type", "ActionGeo_FullName", "ActionGeo_CountryCode", "ActionGeo_ADM1Code", "ActionGeo_Lat", "ActionGeo_Long", "ActionGeo_FeatureID"]]
+
+    # Rename GLOBALEVENTID to fit the camelcase writing style of the remaining attributes
+    action_attrs = action_attrs.rename(columns={"GLOBALEVENTID": "GlobalEventId"})
 
     # Ensure all columns of the df are the correct type before insertion
-    action_attrs = action_attrs.astype({"GlobalEventId": int, "EventCode": str, "ActionGeo_Type": int, "ActionGeo_FullName": str, "ActionGeo_CountryCode": str, 
-                                            "ActionGeo_ADM1Code": str, "ActionGeo_Lat": float, "ActionGeo_Long": float, "ActionGeo_FeatureID": int})
+    numeric_cols = ["GlobalEventId", "ActionGeo_Type", "ActionGeo_FeatureID", "ActionGeo_Lat", "ActionGeo_Long"]
+    for col in numeric_cols:
+        action_attrs[col] = pd.to_numeric(action_attrs[col], errors='coerce')
+
+    action_attrs = action_attrs.astype({"EventCode": str, "ActionGeo_FullName": str, "ActionGeo_CountryCode": str, "ActionGeo_ADM1Code": str})
 
     # Rename the columns of each df to the names that will be used in the final SQL table
     action_attrs = action_attrs.rename(columns={"GlobalEventId": "GlobalEventId", "EventCode": "GeoActionCode", "ActionGeo_Type": "ActionGeo_Type", "ActionGeo_FullName": "ActionGeo_FullName", 
                                                   "ActionGeo_CountryCode": "ActionGeo_CountryCode", "ActionGeo_ADM1Code": "ActionGeo_ADM1Code", "ActionGeo_Lat": "ActionGeo_Lat", 
                                                   "ActionGeo_Long": "ActionGeo_Long", "ActionGeo_FeatureID": "ActionGeo_FeatureID"})
 
+    # Replace float style NaNs with None
+    action_attrs = action_attrs.astype(object).replace({np.nan: None})
+    
+    # Drop rows with duplicate GlobalEventIds, since that is the primary key
+    action_attrs = action_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first")
+
     # Convert the df into a list of tuples for insertion into mysql
     actions_to_insert = action_attrs.to_numpy().tolist()
+
+    ############# CREATE TABLE #############
+    c.execute("DROP TABLE IF EXISTS ActionGeo;")
+
+    max_length_geo = max_length_geo + 10
+    max_length_eventcode = max_length_actor + 10
+    
+    create_actiongeo_table_query = f"""
+        CREATE TABLE IF NOT EXISTS ActionGeo (
+            GlobalEventId INT PRIMARY KEY,
+            GeoActionCode VARCHAR({max_length_eventcode}),
+            ActionGeo_Type INT,
+            ActionGeo_FullName VARCHAR({max_length_geo}),
+            ActionGeo_CountryCode CHAR(2),
+            ActionGeo_ADMCode CHAR(4),
+            ActionGeo_Lat DECIMAL(8, 4),
+            ActionGeo_Long DECIMAL(8, 4),
+            ActionGeo_FeatureId INT
+        );
+    """
+
+    c.execute(create_actiongeo_table_query)
 
     ############# INSERT TUPLES #############
     # ActionGeo(lobalEventId (PK), GeoActionCode (PK, FK on EventCode in EventAction Table), ActionGeo_Type, ActionGeo_Fullname, ActionGeo_CountryCode, ActionGeo_ADMCode, ActionGeo_Lat, ActionGeo_Long, ActionGeo_FeatureId)
@@ -892,8 +1082,6 @@ if __name__ == '__main__':
                                 database=database)
 
 
-    # To determine how long it took to load the data into the DataManagement table, we display the time before and after value insertion.
-    # The code to display the time was modified from this link: https://stackoverflow.com/questions/415511/how-do-i-get-the-current-time-in-python
     before = datetime.now(pytz.utc) # Time before insertion
     print(f"\n\n----------------------------------------------------------\nBefore DataManagement Insert Executed: {before.astimezone(pytz.timezone('US/Eastern')).time()}\n----------------------------------------------------------\n")
 
@@ -903,15 +1091,35 @@ if __name__ == '__main__':
     c = conn.cursor(prepared=True)
 
     # Collect Event Attributes and drop rows with duplicate GlobalEventId Codes
-    data_attrs = GDELT_df[["GlobalEventId", "DateAdded", "SourceURL"]]
-    data_attrs = data_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first") # Drop based on the GlobalEventId column and keep the first instance
+    data_attrs = GDELT_df[["GLOBALEVENTID", "DATEADDED", "SOURCEURL"]]
+
+    # Rename columns to fit the camelcase writing style of the remaining attributes
+    data_attrs = data_attrs.rename(columns={"GLOBALEVENTID": "GlobalEventId", "DATEADDED": "DateAdded", "SOURCEURL": "SourceURL"})
 
     # Ensure all columns of the df are the correct type before insertion
-    data_attrs = data_attrs.astype({"GlobalEventId": int, "SourceURL": text})
+    data_attrs = data_attrs.astype({"GlobalEventId": int, "SourceURL": str})
     data_attrs["DateAdded"] = pd.to_datetime(data_attrs["DateAdded"])
+
+    data_attrs = data_attrs.astype(object).replace({np.nan: None})
+    
+    # Drop rows with duplicate GlobalEventIds, since that is the primary key
+    data_attrs = data_attrs.drop_duplicates(subset=["GlobalEventId"], keep="first")
 
     # Convert the df into a list of tuples for insertion into mysql
     data_to_insert = data_attrs.to_numpy().tolist()
+
+
+    ############# CREATE TABLE #############
+    c.execute("DROP TABLE IF EXISTS DataManagement;")
+
+    create_datamanagement_table_query = f"""
+        CREATE TABLE IF NOT EXISTS DataManagement (
+            GlobalEventId INT PRIMARY KEY,
+            DateAdded DATETIME,
+            SourceURL TEXT
+        );
+    """
+    c.execute(create_datamanagement_table_query)
 
     ############# INSERT TUPLES #############
     # DataManagement(GlobalEventId (PK), DateAdded, SourceURL) 
@@ -942,8 +1150,6 @@ if __name__ == '__main__':
                                     database=database)
 
 
-    # To determine how long it took to load the data into the ParticipatesIn table, we display the time before and after value insertion.
-    # The code to display the time was modified from this link: https://stackoverflow.com/questions/415511/how-do-i-get-the-current-time-in-python
     before = datetime.now(pytz.utc) # Time before insertion
     print(f"\n\n----------------------------------------------------------\nBefore ParticipatesIn Insert Executed: {before.astimezone(pytz.timezone('US/Eastern')).time()}\n----------------------------------------------------------\n")
 
@@ -952,32 +1158,48 @@ if __name__ == '__main__':
     # creating the cursor object
     c = conn.cursor(prepared=True)
 
-    # Since we have separate attributes for Actor1, Actor2, and Actions, we will collect them separately before combining later on
-
-    # Collect Actor 1 Attributes and drop rows with duplicate GlobalEventId and ActorCode
-    actor_1_attrs = GDELT_df[["GlobalEventId", "Actor1Code", "EventCode", "Day"]]
-    actor_1_attrs = actor_1_attrs.drop_duplicates(subset=["GlobalEventId", "Actor1Code"], keep="first") # Drop based on the GlobalEventId and ActorCode columns and keep the first instance
-
-    # Collect Actor 2 Attributes and drop rows with duplicate GlobalEventId
-    actor_2_attrs = GDELT_df[["GlobalEventId", "Actor2Code", "EventCode", "Day"]]
-    actor_2_attrs = actor_2_attrs.drop_duplicates(subset=["GlobalEventId", "Actor2Code"], keep="first") # Drop based on the GlobalEventId and ActorCode columns and keep the first instance
+    # Collect attributes
+    actor_attrs = GDELT_df[["GLOBALEVENTID", "Actor1Code", "Actor2Code", "EventCode", "SQLDATE"]]
+    
+    # Rename columns to fit the camelcase writing style of the remaining attributes
+    actor_attrs = actor_attrs.rename(columns={"GLOBALEVENTID": "GlobalEventId", "SQLDATE": "Day"})
 
     # Ensure all columns of the df are the correct type before insertion
-    actor_1_attrs = actor_1_attrs.astype({"GlobalEventId": int, "Actor1Code": str, "EventCode": str})
-    actor_1_attrs["Day"] = pd.to_datetime(actor_1_attrs)
-    actor_2_attrs = actor_2_attrs.astype({"GlobalEventId": int, "Actor2Code": str, "EventCode": str})
-    actor_2_attrs["Day"] = pd.to_datetime(actor_1_attrs)
+    actor_attrs = actor_attrs.astype({"GlobalEventId": int, "Actor1Code": str, "Actor2Code": str, "EventCode": str})
+    actor_attrs["Day"] = pd.to_datetime(actor_attrs["Day"], format="%Y%m%d")
 
     # Rename the columns of each df to the names that will be used in the final SQL table
-    actor_1_attrs = actor_1_attrs.rename(columns={"GlobalEventId": "GlobalEventId", "Actor1Code": "Actor1", "EventCode": "EventCode", "Day": "Day"})
-    actor_2_attrs = actor_2_attrs.rename(columns={"GlobalEventId": "GlobalEventId", "Actor2Code": "Actor2", "EventCode": "EventCode", "Day": "Day"})
+    actor_attrs = actor_attrs.rename(columns={"GlobalEventId": "GlobalEventId", "Actor1Code": "Actor1", "Actor2Code": "Actor2", "EventCode": "EventCode", "Day": "Day"})
 
-    # Combine the actor 1 and actor 2 attributes into one df and drop any rows with duplicate GlobalEventIds and ActorCodes
-    actor_attrs = pd.merge(actor_1_attrs, actor_2_attrs, left_on="GlobalEventId", right_on="GlobalEventId" ,how="outer")
-    actor_attrs = actor_attrs.drop_duplicates(subset=["GlobalEventId", "Actor1Code", "Actor2Code"], keep="first")
+    # Replace all float-style NaNs with None
+    actor_attrs = actor_attrs.astype(object).replace({np.nan: None})
+        
+    # Drop rows with duplicate sets of GlobalEventIds and ActorCodes, since those comprise the primary key
+    actor_attrs["Actor1"] = actor_attrs["Actor1"].str.upper()
+    actor_attrs["Actor2"] = actor_attrs["Actor2"].str.upper()
+    actor_attrs = actor_attrs.drop_duplicates(subset=["GlobalEventId", "Actor1", "Actor2"], keep="first")
 
     # Convert the df into a list of tuples for insertion into mysql
     actors_to_insert = actor_attrs.to_numpy().tolist()
+
+
+    ############# CREATE TABLE #############
+    max_length_participateactor = max_length_actor + 10
+    max_length_participateeventcode = max_length_actor + 10
+
+    c.execute("DROP TABLE IF EXISTS ParticipatesIn;")
+
+    create_participatesin_table_query = f"""
+        CREATE TABLE IF NOT EXISTS ParticipatesIn (
+            GlobalEventId INT,
+            Actor1 VARCHAR({max_length_participateactor}),
+            Actor2 VARCHAR({max_length_participateactor}),
+            EventCode VARCHAR({max_length_participateeventcode}),
+            Day DATETIME,
+            PRIMARY KEY (GlobalEventId, Actor1, Actor2)
+        );
+    """
+    c.execute(create_participatesin_table_query)
 
     ############# INSERT TUPLES #############
     # SQL query to insert data into database
@@ -999,4 +1221,3 @@ if __name__ == '__main__':
 
     end = datetime.now(pytz.utc) # Time before insertion
     print(f"\n\n----------------------------------------------------------\nTIME AT END: {end.astimezone(pytz.timezone('US/Eastern')).time()}\n----------------------------------------------------------\n")
-        
