@@ -1,0 +1,47 @@
+Group Members: Gunnika Kapoor, Peter Khomchenko, Timothy Ockrin
+
+This file details the use of AI in the final project for CSCI 620.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+AI Use in SQL Data Loader:
+
+This file has a total of 613 lines, out of which 12 were written by Gemini. That equals a total percentage of
+ (12/613) * 100 = 0.0212 * 100 = 2.12.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+for attempt in range(attempts):
+    try:
+        # Load data from gkg table
+        results = gd1.Search(date_range, table='events', output='pandas')
+        success = True
+        break
+    except Exception as e: # Data loading failed, so retry
+        print(f"Attempt {attempt+1} failed due to: {e}. Retrying...")
+        time.sleep(2) # Wait 2 seconds before retrying
+
+The code above was written by Gemini, since before this code, when a query failed, the program stalled.
+This helped the program attempt another query rather than stalling after one failed attempt.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+actor_attrs = actor_attrs.astype(object).replace({np.nan: None})
+
+The code above was written by Gemini. Before this code, the program threw an error regarding input data length.
+This converted the float-based NaNs found in the dfs into None type variables that could be inserted into the SQL Database,
+correcting the error.
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+numeric_cols = ["GlobalEventId", "Actor1Geo_Type", "Actor1Geo_FeatureID", "Actor1Geo_Lat", "Actor1Geo_Long"]
+    for col in numeric_cols:
+        actor_1_attrs[col] = pd.to_numeric(actor_1_attrs[col], errors='coerce')
+
+The code above was written by Gemini. Due to misplaced elements in certain columns in the GDELT database, some non-numeric
+values appeared in numeric columns. This helped ensure that all values in numeric columns would be of the correct type.
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+AI Use in MongoDB Data Loader:
+
+
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------
+AI Use in Query and Index Creation:
