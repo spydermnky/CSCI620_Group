@@ -40,7 +40,7 @@ values appeared in numeric columns. This helped ensure that all values in numeri
 -------------------------------------------------------------------------------------------------------------------------------------------
 AI Use in MongoDB Data Loader:
 
-
+No AI was used to write any of the code for the MongoDB Data Loader.
 
 
 -------------------------------------------------------------------------------------------------------------------------------------------
