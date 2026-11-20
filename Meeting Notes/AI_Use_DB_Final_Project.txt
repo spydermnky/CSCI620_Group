@@ -55,4 +55,7 @@ body = "\n".join(l for l in text[m.end():end].split("\n") if not l.strip().start
         body = re.sub(r"^\s*USE\s+\w+\s*;", "", body, flags=re.I).strip()
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+This file has 67 lines of code (run_queries.py) and 3 of them are written by AI, so that brings the percentage to 
+(3/67) * 100 = approx. 4%
+
 -------------------------------------------------------------------------------------------------------------------------------------------
