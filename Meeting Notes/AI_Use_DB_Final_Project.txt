@@ -45,3 +45,14 @@ No AI was used to write any of the code for the MongoDB Data Loader.
 
 -------------------------------------------------------------------------------------------------------------------------------------------
 AI Use in Query and Index Creation:
+
+In order to parse the SQL queries correctly, Gemini was used to help create parts of the load_queries function, so that 
+the data could be loaded hassle free and be error-prone. Namely, the following lines were written:
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+header = re.compile(r"^[ \t]*--[ \t]*(?:QUERY[ \t]*|Q)(\d+)[ \t]*[.:)]?[ \t]*(.*)$",re.IGNORECASE | re.MULTILINE)
+body = "\n".join(l for l in text[m.end():end].split("\n") if not l.strip().startswith("--")).strip()
+        body = re.sub(r"^\s*USE\s+\w+\s*;", "", body, flags=re.I).strip()
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+-------------------------------------------------------------------------------------------------------------------------------------------
