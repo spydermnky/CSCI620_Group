@@ -15,17 +15,16 @@ import numpy as np
 
 
 ''' 
-SET THE VALUES OF THE VARIABLES BELOW SO YOU CAN
+PLEASE SET THE VALUES OF THE VARIABLES BELOW SO YOU CAN
 CONNECT TO THE DATABASE
 
-(DELETE THEM BEFORE PUSHING TO GITHUB)
 '''
 
-# username = ''
-# password = ''
-# host = ''
-# port = 
-# database = ''
+username = ''
+password = ''
+host = ''
+port = 
+database = 'GDELT'
 
 #---------------------------------------------------------------------------------------------------------
 #-------------------------------LOAD DATA FROM GDELT LIBRARY INTO PANDAS DF-------------------------------
